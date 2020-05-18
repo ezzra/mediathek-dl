@@ -49,7 +49,7 @@ However, this command will start downloading the miniseries\
 and it will create a folder structure like\
 `The War/Season 01/The War - s14e01 - Ein notwendiger Krieg.mp4`
 
-Checkout the help page for more functionality (reducing the result by negative searchstring
+Checkout the help page for more functionality (reducing the result by negative searchstring, various output formats, ...)
 
 ```
 positional arguments:
