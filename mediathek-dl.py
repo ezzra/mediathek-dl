@@ -104,7 +104,7 @@ class MVW:
         target_data = self.get_target_data(item)
         ssh_cmd, target_data = self.get_ssh_cmd(target_data)
         mkdir_cmd = '%smkdir -p "\'%s\'"' % (ssh_cmd, target_data['filepath'])
-        wget_cmd = '%swget %s -O "\'%s\'"' % (ssh_cmd, item['link'], target_data['joined_path'])
+        wget_cmd = '%swget %s -C -O "\'%s\'"' % (ssh_cmd, item['link'], target_data['joined_path'])
         if self.printonly:
             print()
             print(mkdir_cmd)
@@ -121,7 +121,7 @@ class MVW:
         target_data = self.get_target_data(item)
         ssh_cmd, target_data = self.get_ssh_cmd(target_data)
         mkdir_cmd = '%smkdir -p "%s"' % (ssh_cmd, target_data['filepath'])
-        curl_cmd = '%scurl %s -# -o "%s"' % (ssh_cmd, item['link'], target_data['joined_path'])
+        curl_cmd = '%scurl %s -C - -# -o "%s"' % (ssh_cmd, item['link'], target_data['joined_path'])
         if self.printonly:
             print()
             print(mkdir_cmd)
@@ -148,7 +148,7 @@ class MVW:
         return ssh_cmd, target_data
 
     def get_target_data(self, item):
-        series_data = re.findall(r'(.+)\((\d+)/(\d+)\)\W*(.+)', item['title'])
+        series_data = re.findall(r'(.+)\((\d+)/(\d+)\)\W*(.*)', item['title'])
         if series_data:
             target_data = self.get_series_target_data(series_data[0])
         else:
@@ -171,6 +171,8 @@ class MVW:
         string = string.replace('|', '-')
         string = string.replace('(', '_')
         string = string.replace(')', '_')
+        string = string.replace('&', '+')
+        string = re.sub(r' - Staffel \d', '', string)
         return string
 
     def get_series_target_data(self, series_data):
@@ -180,7 +182,9 @@ class MVW:
         episode_num = int(series_data[1])
         target_data = dict()
         target_data['filepath'] = os.path.join(series_title, 'Season %02d' % 1)
-        target_data['filename'] = '%s - s%02de%02d - %s' % (series_title, season_num, episode_num, episode_title)
+        target_data['filename'] = '%s - s%02de%02d' % (series_title, season_num, episode_num)
+        if episode_title:
+            target_data['filename'] = target_data['filename'] + ' - ' + episode_title
         return target_data
 
 
