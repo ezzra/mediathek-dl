@@ -18,6 +18,8 @@ parser.add_argument('-o', '--output', choices=['save', 'wget', 'test', 'curl'], 
 parser.add_argument('--ssh', help='set this to tunnel your curl or wget output through ssh')
 parser.add_argument('-b', '--blindness', action='store_true', help='show videos with "Hörfassung" in title (disabled by default)')
 parser.add_argument('-n', '--not_search', help='words you want to exclude from result, for example "Hörfassung" (separate multiple by commata)')
+parser.add_argument('--wget', help='options for wget command')
+parser.add_argument('--curl', help='options for curl command')
 parser.add_argument('-v', '--verbose', action='store_true', help='show verbose output')
 parser.add_argument('-t', '--test', action='store_true', help='just show list of titles')
 parser.add_argument('-p', '--printonly', action='store_true', help='just print the commands without executing (for wget and curl output)')
@@ -36,6 +38,8 @@ class MVW:
     ssh = None
     feed = None
     printonly = False
+    wget_options = ''
+    curl_options = ''
 
     def __init__(self, args):
         # todo: create check_and_get methods for all of them
@@ -44,6 +48,8 @@ class MVW:
         self.show_blindness_version = args.blindness
         self.printonly = args.printonly
         self.ssh = args.ssh if args.ssh else self.ssh
+        self.wget_options = args.wget if args.wget else self.wget_options
+        self.curl_options = args.curl if args.curl else self.curl_options
         self.verbose = args.verbose
         self.output_type = args.output if args.output else self.output_type
         self.output_type = 'test' if args.test else self.output_type
@@ -104,7 +110,7 @@ class MVW:
         target_data = self.get_target_data(item)
         ssh_cmd, target_data = self.get_ssh_cmd(target_data)
         mkdir_cmd = '%smkdir -p "\'%s\'"' % (ssh_cmd, target_data['filepath'])
-        wget_cmd = '%swget %s -C -O "\'%s\'"' % (ssh_cmd, item['link'], target_data['joined_path'])
+        wget_cmd = '%swget %s -C -O %s "\'%s\'"' % (ssh_cmd, item['link'], self.wget_options, target_data['joined_path'])
         if self.printonly:
             print()
             print(mkdir_cmd)
@@ -121,7 +127,7 @@ class MVW:
         target_data = self.get_target_data(item)
         ssh_cmd, target_data = self.get_ssh_cmd(target_data)
         mkdir_cmd = '%smkdir -p "%s"' % (ssh_cmd, target_data['filepath'])
-        curl_cmd = '%scurl %s -C - -# -o "%s"' % (ssh_cmd, item['link'], target_data['joined_path'])
+        curl_cmd = '%scurl %s -C - -# %s -o "%s"' % (ssh_cmd, item['link'], self.curl_options, target_data['joined_path'])
         if self.printonly:
             print()
             print(mkdir_cmd)
@@ -172,20 +178,28 @@ class MVW:
         string = string.replace('(', '_')
         string = string.replace(')', '_')
         string = string.replace('&', '+')
+        string = string.replace('"', '')
+        string = string.replace('\'', '')
         string = re.sub(r' - Staffel \d', '', string)
         return string
 
     def get_series_target_data(self, series_data):
         series_title = series_data[0].strip()
         episode_title = series_data[3].strip()
-        season_num = int(series_data[2])
+        season_num = self.get_season_num(series_title)
         episode_num = int(series_data[1])
         target_data = dict()
-        target_data['filepath'] = os.path.join(series_title, 'Season %02d' % 1)
+        target_data['filepath'] = os.path.join(series_title, 'Season %02d' % season_num)
         target_data['filename'] = '%s - s%02de%02d' % (series_title, season_num, episode_num)
         if episode_title:
             target_data['filename'] = target_data['filename'] + ' - ' + episode_title
         return target_data
+
+    def get_season_num(self, series_title):
+        season_num = re.findall(r'Staffel (\d)', series_title)
+        if season_num:
+            return int(season_num[0])
+        return 1
 
 
 MVW(arguments)
