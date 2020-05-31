@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import feedparser
 import re
 import os
@@ -11,6 +10,9 @@ import datetime
 import time
 
 
+# todo -p and -t do not work together, should be revised anyway
+
+
 parser = argparse.ArgumentParser()
 parser.add_argument('search_string', help='the search string for the medias you want to download')
 parser.add_argument('-f', '--folder', help='folder where the media will be stored')
@@ -21,6 +23,7 @@ parser.add_argument('-n', '--not_search', help='words you want to exclude from r
 parser.add_argument('--wget', help='options for wget command')
 parser.add_argument('--curl', help='options for curl command')
 parser.add_argument('-v', '--verbose', action='store_true', help='show verbose output')
+parser.add_argument('-d', '--detach', action='store_true', help='detach the screen immediately')
 parser.add_argument('-t', '--test', action='store_true', help='just show list of titles')
 parser.add_argument('-p', '--printonly', action='store_true', help='just print the commands without executing (for wget and curl output)')
 arguments = parser.parse_args()
@@ -35,6 +38,7 @@ class MVW:
     blindness_list = ['Hörfassung', 'Hörfilm']
     output_type = 'save'
     verbose = False
+    detach = False
     ssh = None
     feed = None
     printonly = False
@@ -51,6 +55,7 @@ class MVW:
         self.wget_options = args.wget if args.wget else self.wget_options
         self.curl_options = args.curl if args.curl else self.curl_options
         self.verbose = args.verbose
+        self.detach = args.detach
         self.output_type = args.output if args.output else self.output_type
         self.output_type = 'test' if args.test else self.output_type
         self.remove_search_list = [x.strip() for x in args.not_search.split(',')] if args.not_search else self.remove_search_list
@@ -110,7 +115,8 @@ class MVW:
         target_data = self.get_target_data(item)
         ssh_cmd, target_data = self.get_ssh_cmd(target_data)
         mkdir_cmd = '%smkdir -p "\'%s\'"' % (ssh_cmd, target_data['filepath'])
-        wget_cmd = '%swget %s -C -O %s "\'%s\'"' % (ssh_cmd, item['link'], self.wget_options, target_data['joined_path'])
+        wget_cmd = 'wget %s -C -O %s "\'%s\'"' % (item['link'], self.wget_options, target_data['joined_path'])
+        wget_cmd = ssh_cmd + self.get_detach_cmd() + wget_cmd
         if self.printonly:
             print()
             print(mkdir_cmd)
@@ -127,7 +133,8 @@ class MVW:
         target_data = self.get_target_data(item)
         ssh_cmd, target_data = self.get_ssh_cmd(target_data)
         mkdir_cmd = '%smkdir -p "%s"' % (ssh_cmd, target_data['filepath'])
-        curl_cmd = '%scurl %s -C - -# %s -o "%s"' % (ssh_cmd, item['link'], self.curl_options, target_data['joined_path'])
+        curl_cmd = 'curl %s -C - -# %s -o "%s"' % (item['link'], self.curl_options, target_data['joined_path'])
+        curl_cmd = ssh_cmd + self.get_detach_cmd() + curl_cmd
         if self.printonly:
             print()
             print(mkdir_cmd)
@@ -152,6 +159,11 @@ class MVW:
         else:
             ssh_cmd = ''
         return ssh_cmd, target_data
+
+    def get_detach_cmd(self):
+        if self.detach:
+            return 'screen -m -d '
+        return ''
 
     def get_target_data(self, item):
         series_data = re.findall(r'(.+)\((\d+)/(\d+)\)\W*(.*)', item['title'])
